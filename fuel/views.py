@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 from .models import FuelStation
 from .serializers import RouteRequestSerializer
 from .services.errors import RoutePlanningError
-from .services.planner import TripResult, plan_trip
+from .services.planner import StationIndex, TripResult, plan_trip
 
 SIMPLIFY_EVERY_MILES = 2.0
 
@@ -161,6 +161,9 @@ class RouteView(APIView):
 
 
 def health(_request):
+    # Building the in-memory station index here means the hosting platform's health check
+    # warms it right after a (re)start, so the first real request is not slowed down.
+    StationIndex.get()
     return JsonResponse({"status": "ok", "stations_loaded": FuelStation.objects.count()})
 
 

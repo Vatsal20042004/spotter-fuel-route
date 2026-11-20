@@ -6,6 +6,8 @@ Django API that takes a **start** and **finish** inside the USA and returns the 
 **cost-optimal fuel stops** along it (500-mile range), and the **total fuel cost** at 10 mpg, priced
 from the supplied fuel-price file. Includes a map page (`/`) where the stops are laid out as a strip map, with gaps drawn in proportion to the miles between them.
 
+**Live demo: https://spotter-fuel-route.onrender.com/** (API docs: [/api/docs/](https://spotter-fuel-route.onrender.com/api/docs/)). The free host sleeps when idle, so the first visit after a quiet spell can take up to a minute to wake.
+
 ![Route fuel planner: New York to Los Angeles](docs/screenshot.png)
 
 | Requirement | How it is met |
