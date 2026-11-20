@@ -95,7 +95,6 @@
   .end.b span { background: var(--ink); border: 2px solid #fff; border-radius: 3px; }
   .leaflet-popup-content-wrapper { border-radius: 4px; font: 400 14px/1.4 var(--body); color: var(--ink); }
   .leaflet-popup-content { margin: 10px 12px; }
-  .leaflet-tile-pane { filter: saturate(.3) contrast(.92) brightness(1.04); }
   .route-line { fill: none; }
   .route-line.draw { transition: stroke-dashoffset 1s ease-out; }
   @media (prefers-reduced-motion: reduce) { .route-line.draw { transition: none; } }
@@ -153,9 +152,13 @@ const gal = n => Number(n).toFixed(1);
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const map = L.map('map', {zoomControl: true}).setView([39.2, -97], 4);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 18,
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/';
+L.tileLayer(ESRI + 'World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 16, maxNativeZoom: 16,
+  attribution: 'Tiles &copy; Esri, HERE, Garmin, OpenStreetMap contributors'
+}).addTo(map);
+L.tileLayer(ESRI + 'World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 16, maxNativeZoom: 16
 }).addTo(map);
 const layer = L.layerGroup().addTo(map);
 let markers = [];

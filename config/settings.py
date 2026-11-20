@@ -72,6 +72,9 @@ USE_I18N = False
 USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Map tile servers (OpenStreetMap) require a Referer; Django's default "same-origin" strips it.
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
