@@ -37,6 +37,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "fuel.middleware.ResponseTimeMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -105,6 +106,7 @@ MAX_STATION_DETOUR_MILES = float(os.environ.get("MAX_STATION_DETOUR_MILES", 5))
 
 OSRM_BASE_URL = os.environ.get("OSRM_BASE_URL", "https://router.project-osrm.org")
 NOMINATIM_BASE_URL = os.environ.get("NOMINATIM_BASE_URL", "https://nominatim.openstreetmap.org")
+EXTERNAL_RETRY_DELAY_SECONDS = float(os.environ.get("EXTERNAL_RETRY_DELAY_SECONDS", 0.5))
 EXTERNAL_TIMEOUT_SECONDS = float(os.environ.get("EXTERNAL_TIMEOUT_SECONDS", 15))
 # Nominatim's usage policy requires an identifying User-Agent.
 EXTERNAL_USER_AGENT = os.environ.get("EXTERNAL_USER_AGENT", "spotter-fuel-route-assessment/1.0")

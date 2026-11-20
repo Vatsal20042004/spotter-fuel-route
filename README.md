@@ -1,5 +1,7 @@
 # Spotter Fuel Route API
 
+[![CI](https://github.com/Vatsal20042004/spotter-fuel-route/actions/workflows/ci.yml/badge.svg)](https://github.com/Vatsal20042004/spotter-fuel-route/actions/workflows/ci.yml)
+
 Django API that takes a **start** and **finish** inside the USA and returns the driving route, the
 **cost-optimal fuel stops** along it (500-mile range), and the **total fuel cost** at 10 mpg, priced
 from the supplied fuel-price file. Includes a Leaflet map page for the visual route.
@@ -8,7 +10,7 @@ from the supplied fuel-price file. Includes a Leaflet map page for the visual ro
 |---|---|
 | Latest stable Django | Django 6.1.3 + DRF 3.18 (pinned in `requirements.txt`) |
 | Free map / routing API | OSRM public server (routing) + Nominatim (address lookup), no API key |
-| Few map-API calls | **1 call** with `lat,lng` input; **3 max** with free-text addresses; **0** when repeated (cached) |
+| Few map-API calls | **1 call** for `lat,lng` or `"City, ST"` input (resolved offline); **3 max** for arbitrary addresses; **0** when repeated (cached) |
 | Fast | ~50–250 ms of compute for a coast-to-coast trip; the rest is the single OSRM round trip |
 | 500-mile range, multiple stops | Exact greedy optimiser, never lets a leg exceed 500 miles |
 | Total cost at 10 mpg | `summary.total_fuel_cost` = sum of gallons x price at each stop |
@@ -20,8 +22,10 @@ from the supplied fuel-price file. Includes a Leaflet map page for the visual ro
   the sample trips) and against buying everything at the corridor average price. This is the business case in one number.
 - **Any vehicle.** Optional `range_miles` and `mpg` per request, so the same API serves a fleet that is not all 500 mi / 10 mpg.
 - **Honest per-stop data.** Each stop reports `detour_miles` off the route, plus `mile_marker`, gallons and cost.
+- **City names cost nothing.** `"City, ST"` inputs are resolved offline from the Census data, so the typical request is a single routing call.
+- **Resilient.** One automatic retry on transient provider errors; trips that fit in one tank work even with no station near the route.
 - **Provably optimal.** The optimiser is checked against an exact dynamic-programming reference on random trips.
-- **Production habits.** Input validation, typed error codes, throttling, caching, OpenAPI docs, Docker, CI, 55 offline tests.
+- **Production habits.** Input validation, typed error codes, throttling, caching, OpenAPI docs, Docker, CI, 68 offline tests.
 
 ## Quick start
 
@@ -40,7 +44,7 @@ curl -X POST localhost:8000/api/route/ -H "Content-Type: application/json" \
      -d '{"start": "New York, NY", "finish": "Los Angeles, CA"}'
 ```
 
-Docker: `docker compose up --build`. Tests: `pytest` (55 tests, offline). Lint: `ruff check .`.
+Docker: `docker compose up --build`. One-click hosting: `render.yaml`. Design notes and diagram: [`docs/DESIGN.md`](docs/DESIGN.md). Tests: `pytest` (68 tests, offline). Lint: `ruff check .`.
 A Postman collection with assertions is in `postman/`.
 
 ## API
@@ -49,7 +53,7 @@ A Postman collection with assertions is in `postman/`.
 
 | Field | Notes |
 |---|---|
-| `start`, `finish` | US address/place (`"Austin, TX"`) **or** `"lat,lng"` (skips geocoding; 1 external call total) |
+| `start`, `finish` | `"City, ST"` (`"Austin, TX"` or `"Austin, Texas"`) or `"lat,lng"`: resolved offline, 1 external call total. Any other US address goes through Nominatim (+1 call each) |
 | `range_miles`, `mpg` | Optional vehicle overrides (defaults 500 and 10) |
 | `geometry` | `simplified` (default, ~2-mile spacing) or `full` router geometry |
 

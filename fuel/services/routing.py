@@ -1,9 +1,9 @@
 """Map/routing clients: OSRM (routing) and Nominatim (address -> coordinates).
 
-Budget: the route itself costs exactly ONE OSRM call. If the caller passes
-"lat,lng" coordinates no geocoding happens at all; free-text addresses cost one
-Nominatim call each (so at most 3 external calls in the worst case). Every
-result is cached, so repeating a request costs zero calls.
+Budget: the route itself costs exactly ONE OSRM call. "lat,lng" coordinates and
+"City, ST" inputs (resolved offline from the Census gazetteer) need no geocoding
+call; only other free-text addresses cost one Nominatim call each, so the worst
+case is 3 external calls. Every result is cached, so repeating a request costs zero.
 """
 
 from __future__ import annotations
@@ -11,12 +11,14 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
+import time
 from dataclasses import dataclass, field
 
 import requests
 from django.conf import settings
 from django.core.cache import cache
 
+from .cities import lookup_city
 from .errors import InvalidLocation, NoRouteFound, OutsideUSA, UpstreamError
 
 logger = logging.getLogger(__name__)
@@ -33,6 +35,7 @@ class CallTracker:
 
     calls: int = 0
     cache_hits: int = 0
+    offline_lookups: int = 0
     log: list[str] = field(default_factory=list)
 
     def record(self, what: str) -> None:
@@ -63,20 +66,27 @@ def _cache_key(prefix: str, raw: str) -> str:
 
 
 def _http_get(url: str, tracker: CallTracker, what: str, **kwargs) -> requests.Response:
-    tracker.record(what)
-    try:
-        resp = requests.get(
-            url,
-            headers={"User-Agent": settings.EXTERNAL_USER_AGENT},
-            timeout=settings.EXTERNAL_TIMEOUT_SECONDS,
-            **kwargs,
-        )
-    except requests.RequestException as exc:
-        logger.warning("External call failed (%s): %s", what, exc)
-        raise UpstreamError(f"Could not reach the {what} service. Please retry shortly.") from exc
-    if resp.status_code >= 500 or resp.status_code == 429:
-        raise UpstreamError(f"The {what} service is unavailable (HTTP {resp.status_code}).")
-    return resp
+    """GET with one retry on a transient failure (network error, 429 or 5xx)."""
+    last_error = ""
+    for attempt in (1, 2):
+        tracker.record(what if attempt == 1 else f"{what} (retry)")
+        try:
+            resp = requests.get(
+                url,
+                headers={"User-Agent": settings.EXTERNAL_USER_AGENT},
+                timeout=settings.EXTERNAL_TIMEOUT_SECONDS,
+                **kwargs,
+            )
+        except requests.RequestException as exc:
+            last_error = f"could not be reached ({type(exc).__name__})"
+        else:
+            if resp.status_code < 500 and resp.status_code != 429:
+                return resp
+            last_error = f"is unavailable (HTTP {resp.status_code})"
+        logger.warning("External %s call failed (attempt %d): %s", what, attempt, last_error)
+        if attempt == 1:
+            time.sleep(settings.EXTERNAL_RETRY_DELAY_SECONDS)
+    raise UpstreamError(f"The {what} service {last_error}. Please retry shortly.")
 
 
 def resolve_location(text: str, tracker: CallTracker) -> Location:
@@ -89,6 +99,10 @@ def resolve_location(text: str, tracker: CallTracker) -> Location:
         if not (-90 <= lat <= 90 and -180 <= lng <= 180):
             raise InvalidLocation(f"Coordinates out of range: {text!r}.")
         loc = Location(lat, lng, f"{lat:.5f},{lng:.5f}")
+    elif offline := lookup_city(text):
+        place, label = offline
+        tracker.offline_lookups += 1
+        loc = Location(place.lat, place.lng, label)
     else:
         key = _cache_key("geo", text)
         cached = cache.get(key)

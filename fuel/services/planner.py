@@ -14,7 +14,7 @@ from fuel.models import FuelStation
 from .errors import NoFeasiblePlan
 from .optimizer import Candidate, FuelPlan, plan_fuel, price_blind_cost
 from .routing import CallTracker, Location, Route, fetch_route, resolve_location
-from .spatial import build_profile, stations_along_route
+from .spatial import build_profile, haversine_miles, stations_along_route
 
 ORIGIN_REFERENCE_MILES = 100  # stations within this distance of the start price the origin fill-up
 
@@ -104,7 +104,10 @@ def plan_trip(
     elif candidates:
         origin_price = min(c.price for c in candidates)
     else:
-        raise NoFeasiblePlan("No fuel stations were found near this route.")
+        # Nothing along the route: price the start from the stations nearest to it. A trip that
+        # fits in one tank still works; a longer one will be reported as infeasible below.
+        dist = haversine_miles(start.lat, start.lng, index.lat, index.lng)
+        origin_price = float(np.mean(index.price[np.argsort(dist)[:25]]))
     origin = Candidate(0.0, origin_price, None)
 
     all_candidates = [origin, *candidates]

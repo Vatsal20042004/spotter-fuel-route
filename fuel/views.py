@@ -113,6 +113,7 @@ def build_payload(result: TripResult, geometry: str) -> dict:
             "external_api_calls": result.tracker.calls,
             "external_calls_detail": result.tracker.log,
             "cache_hits": result.tracker.cache_hits,
+            "offline_lookups": result.tracker.offline_lookups,
             "stations_considered": result.candidates_considered,
             "timings_ms": result.timings_ms,
         },

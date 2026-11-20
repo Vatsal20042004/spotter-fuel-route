@@ -143,3 +143,33 @@ def test_vehicle_overrides_change_the_plan(client, stations):
 
 def test_vehicle_override_validation(client, stations):
     assert post(client, start="40.0,-110.0", finish="40.0,-92.0", mpg=0).status_code == 400
+
+
+def test_city_state_inputs_need_no_geocoding_call(client, stations):
+    with mock.patch("requests.get", return_value=FakeResponse(OSRM_OK)) as get:
+        resp = post(client, start="Denver, CO", finish="Omaha, Nebraska, USA")
+    body = resp.json()
+    assert resp.status_code == 200
+    assert get.call_count == 1  # routing only
+    assert body["meta"]["external_calls_detail"] == ["routing"]
+    assert body["meta"]["offline_lookups"] == 2
+    assert body["start"]["label"] == "Denver, CO"
+    assert "X-Response-Time-ms" in resp.headers
+
+
+def test_transient_upstream_failure_is_retried_once(client, stations, settings):
+    settings.EXTERNAL_RETRY_DELAY_SECONDS = 0
+    with mock.patch("requests.get", side_effect=[FakeResponse({}, 503), FakeResponse(OSRM_OK)]) as get:
+        resp = post(client, start="40.0,-110.0", finish="40.0,-92.0")
+    assert resp.status_code == 200 and get.call_count == 2
+
+
+def test_short_trip_works_with_no_station_near_the_route(client, db):
+    FuelStation.objects.create(
+        truckstop_id=1, name="Far", address="x", city="T", state="CO", price="3.25", lat=45.0, lng=-100.0
+    )
+    short = {**OSRM_OK, "routes": [{**OSRM_OK["routes"][0], "distance": 120 * 1609.344}]}
+    with mock.patch("requests.get", return_value=FakeResponse(short)):
+        body = post(client, start="40.0,-110.0", finish="40.0,-92.0").json()
+    assert body["fuel_stops"] == []
+    assert float(body["summary"]["total_fuel_cost"]) == pytest.approx(12 * 3.25, abs=0.01)
