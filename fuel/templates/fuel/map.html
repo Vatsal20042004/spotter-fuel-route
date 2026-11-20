@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuel Route Planner</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+  :root { --bg:#0f172a; --panel:#111c33; --ink:#e6edf7; --muted:#93a4c0; --accent:#38bdf8; --good:#34d399; --line:#22304d; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); display:flex; height:100vh; }
+  aside { width:380px; max-width:42vw; background:var(--panel); border-right:1px solid var(--line); padding:16px; overflow:auto; }
+  #map { flex:1; }
+  h1 { font-size:18px; margin:0 0 4px; } p.sub { color:var(--muted); margin:0 0 14px; }
+  label { display:block; font-size:12px; color:var(--muted); margin:10px 0 4px; }
+  input { width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--line); background:#0b1428; color:var(--ink); }
+  button { margin-top:14px; width:100%; padding:10px; border:0; border-radius:8px; background:var(--accent); color:#04263a; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:wait; }
+  .card { background:#0b1428; border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:10px; }
+  .big { font-size:26px; font-weight:700; color:var(--good); }
+  .row { display:flex; justify-content:space-between; gap:8px; } .muted { color:var(--muted); font-size:12px; }
+  .err { color:#fca5a5; margin-top:10px; }
+  @media (max-width:760px){ body{flex-direction:column} aside{width:100%;max-width:none;max-height:50vh} }
+</style>
+</head>
+<body>
+<aside>
+  <h1>Fuel Route Planner</h1>
+  <p class="sub">Cheapest diesel stops along a US route · 500 mi range · 10 mpg</p>
+  <form id="f">
+    <label for="start">Start</label><input id="start" value="New York, NY" required>
+    <label for="finish">Finish</label><input id="finish" value="Los Angeles, CA" required>
+    <button id="go">Plan route</button>
+  </form>
+  <div id="out"></div>
+</aside>
+<div id="map"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+const map = L.map('map').setView([39.5, -98.35], 4);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 18, attribution: '&copy; OpenStreetMap contributors'}).addTo(map);
+let layer = L.layerGroup().addTo(map);
+const out = document.getElementById('out');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+document.getElementById('f').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('go'); btn.disabled = true; out.innerHTML = '<p class="muted">Planning…</p>';
+  const q = new URLSearchParams({start: start.value, finish: finish.value});
+  try {
+    const res = await fetch('/api/route/?' + q);
+    const d = await res.json();
+    if (!res.ok) { out.innerHTML = '<p class="err">' + esc(d.error ? d.error.message : JSON.stringify(d)) + '</p>'; return; }
+    layer.clearLayers();
+    const line = L.geoJSON(d.route.geometry, {style: {color: '#38bdf8', weight: 4}}).addTo(layer);
+    L.circleMarker([d.start.lat, d.start.lng], {radius: 8, color: '#34d399', fillOpacity: 1}).bindPopup('Start').addTo(layer);
+    L.circleMarker([d.finish.lat, d.finish.lng], {radius: 8, color: '#f87171', fillOpacity: 1}).bindPopup('Finish').addTo(layer);
+    d.fuel_stops.forEach(s => L.marker([s.location.lat, s.location.lng]).bindPopup(
+      `<b>#${s.order} ${esc(s.name)}</b><br>${esc(s.city)}, ${esc(s.state)}<br>$${s.price_per_gallon}/gal · ${s.gallons} gal<br><b>$${s.cost}</b> · mile ${s.mile_marker}`).addTo(layer));
+    map.fitBounds(line.getBounds(), {padding: [30, 30]});
+    const m = d.meta, sm = d.summary;
+    out.innerHTML = `
+      <div class="card"><div class="muted">Total fuel cost</div><div class="big">$${sm.total_fuel_cost}</div>
+        <div class="muted">${sm.total_gallons} gal · ${d.route.distance_miles} mi · ${d.route.duration_hours} h · ${sm.number_of_fuel_stops} stops</div></div>
+      ${d.origin_fill_up ? `<div class="card"><b>Start</b><div class="row"><span>${d.origin_fill_up.gallons} gal @ $${d.origin_fill_up.price_per_gallon}</span><b>$${d.origin_fill_up.cost}</b></div><div class="muted">Estimated price near origin</div></div>` : ''}
+      ${d.fuel_stops.map(s => `<div class="card"><div class="row"><b>#${s.order} ${esc(s.name)}</b><b>$${s.cost}</b></div>
+        <div class="muted">${esc(s.city)}, ${esc(s.state)} · mile ${s.mile_marker}</div>
+        <div class="muted">${s.gallons} gal @ $${s.price_per_gallon}</div></div>`).join('')}
+      <p class="muted">External API calls: ${m.external_api_calls} · cache hits: ${m.cache_hits} · compute ${m.timings_ms.compute_ms} ms</p>`;
+  } catch (err) { out.innerHTML = '<p class="err">' + esc(err.message) + '</p>'; }
+  finally { btn.disabled = false; }
+});
+</script>
+</body>
+</html>

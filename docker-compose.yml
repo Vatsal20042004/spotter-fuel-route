@@ -1,0 +1,9 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_DEBUG: "false"
+      DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:-change-me-in-real-deployments}"
+      DJANGO_ALLOWED_HOSTS: "*"
