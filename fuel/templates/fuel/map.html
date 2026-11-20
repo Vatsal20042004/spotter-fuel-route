@@ -95,6 +95,8 @@
   .end.b span { background: var(--ink); border: 2px solid #fff; border-radius: 3px; }
   .leaflet-popup-content-wrapper { border-radius: 4px; font: 400 14px/1.4 var(--body); color: var(--ink); }
   .leaflet-popup-content { margin: 10px 12px; }
+  .leaflet-tooltip.place { font: 600 14px/1.2 var(--body); color: var(--ink); background: var(--paper); border: 1px solid var(--ink); border-radius: 4px; box-shadow: none; padding: 3px 7px; }
+  .leaflet-tooltip-top.place::before { border-top-color: var(--ink); }
   .route-line { fill: none; }
   .route-line.draw { transition: stroke-dashoffset 1s ease-out; }
   @media (prefers-reduced-motion: reduce) { .route-line.draw { transition: none; } }
@@ -157,9 +159,6 @@ L.tileLayer(ESRI + 'World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
   maxZoom: 16, maxNativeZoom: 16,
   attribution: 'Tiles &copy; Esri, HERE, Garmin, OpenStreetMap contributors'
 }).addTo(map);
-L.tileLayer(ESRI + 'World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
-  maxZoom: 16, maxNativeZoom: 16
-}).addTo(map);
 const layer = L.layerGroup().addTo(map);
 let markers = [];
 
@@ -190,8 +189,8 @@ function render(d) {
   const line = drawRoute(d.route.geometry);
 
   const endIcon = cls => L.divIcon({className: 'end ' + cls, html: '<span></span>', iconSize: [14, 14]});
-  L.marker([d.start.lat, d.start.lng], {icon: endIcon('a'), keyboard: false}).bindTooltip('Start').addTo(layer);
-  L.marker([d.finish.lat, d.finish.lng], {icon: endIcon('b'), keyboard: false}).bindTooltip('Finish').addTo(layer);
+  L.marker([d.start.lat, d.start.lng], {icon: endIcon('a'), keyboard: false}).bindTooltip(esc(d.start.label), {permanent: true, direction: 'top', offset: [0, -6], className: 'place'}).addTo(layer);
+  L.marker([d.finish.lat, d.finish.lng], {icon: endIcon('b'), keyboard: false}).bindTooltip(esc(d.finish.label), {permanent: true, direction: 'top', offset: [0, -6], className: 'place'}).addTo(layer);
 
   d.fuel_stops.forEach((s, i) => {
     const m = L.marker([s.location.lat, s.location.lng], {
