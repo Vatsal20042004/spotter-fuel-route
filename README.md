@@ -4,7 +4,9 @@
 
 Django API that takes a **start** and **finish** inside the USA and returns the driving route, the
 **cost-optimal fuel stops** along it (500-mile range), and the **total fuel cost** at 10 mpg, priced
-from the supplied fuel-price file. Includes a Leaflet map page for the visual route.
+from the supplied fuel-price file. Includes a map page (`/`) where the stops are laid out as a strip map, with gaps drawn in proportion to the miles between them.
+
+![Route fuel planner: New York to Los Angeles](docs/screenshot.png)
 
 | Requirement | How it is met |
 |---|---|
