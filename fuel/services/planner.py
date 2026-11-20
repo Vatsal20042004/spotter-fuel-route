@@ -12,7 +12,7 @@ from django.conf import settings
 from fuel.models import FuelStation
 
 from .errors import NoFeasiblePlan
-from .optimizer import Candidate, FuelPlan, plan_fuel
+from .optimizer import Candidate, FuelPlan, plan_fuel, price_blind_cost
 from .routing import CallTracker, Location, Route, fetch_route, resolve_location
 from .spatial import build_profile, stations_along_route
 
@@ -42,6 +42,14 @@ class StationIndex:
         cls._instance = None
 
 
+@dataclass(frozen=True)
+class StationHit:
+    """A station found along the route, with how far off the route it sits."""
+
+    station: FuelStation
+    detour_miles: float
+
+
 @dataclass
 class TripResult:
     start: Location
@@ -49,12 +57,22 @@ class TripResult:
     route: Route
     plan: FuelPlan
     origin_price: float
+    baselines: dict[str, Decimal | None]
     candidates_considered: int
     tracker: CallTracker
+    range_miles: float
+    mpg: float
     timings_ms: dict[str, float]
 
 
-def plan_trip(start_text: str, end_text: str) -> TripResult:
+def plan_trip(
+    start_text: str,
+    end_text: str,
+    range_miles: float | None = None,
+    mpg: float | None = None,
+) -> TripResult:
+    range_miles = range_miles or settings.VEHICLE_RANGE_MILES
+    mpg = mpg or settings.VEHICLE_MPG
     tracker = CallTracker()
     timings: dict[str, float] = {}
     t0 = time.perf_counter()
@@ -70,11 +88,12 @@ def plan_trip(start_text: str, end_text: str) -> TripResult:
         raise NoFeasiblePlan("Fuel station data is not loaded. Run `manage.py load_fuel_stations`.")
 
     profile = build_profile(route.coords, route.distance_miles)
-    idx, miles, _offsets = stations_along_route(
+    idx, miles, offsets = stations_along_route(
         profile, index.lat, index.lng, settings.MAX_STATION_DETOUR_MILES
     )
     candidates = [
-        Candidate(float(m), float(index.price[i]), index.rows[i]) for i, m in zip(idx, miles, strict=True)
+        Candidate(float(m), float(index.price[i]), StationHit(index.rows[i], float(off)))
+        for i, m, off in zip(idx, miles, offsets, strict=True)
     ]
 
     # The CSV has no station "at" the origin, so the first tank is priced at the average
@@ -88,15 +107,25 @@ def plan_trip(start_text: str, end_text: str) -> TripResult:
         raise NoFeasiblePlan("No fuel stations were found near this route.")
     origin = Candidate(0.0, origin_price, None)
 
+    all_candidates = [origin, *candidates]
     plan = plan_fuel(
-        [origin, *candidates], route.distance_miles, settings.VEHICLE_RANGE_MILES, settings.VEHICLE_MPG,
+        all_candidates, route.distance_miles, range_miles, mpg,
         min_saving=settings.MIN_PRICE_ADVANTAGE,
         min_purchase_gallons=settings.MIN_PURCHASE_GALLONS,
     )
+    gallons_needed = route.distance_miles / mpg
+    avg_price = float(np.mean([c.price for c in all_candidates]))
+    baselines = {
+        "price_blind": price_blind_cost(all_candidates, route.distance_miles, range_miles, mpg),
+        "corridor_average": (Decimal(repr(avg_price)) * Decimal(repr(gallons_needed))).quantize(
+            Decimal("0.01")
+        ),
+    }
     timings["compute_ms"] = (time.perf_counter() - t1) * 1000
     timings["total_ms"] = (time.perf_counter() - t0) * 1000
     return TripResult(
-        start, end, route, plan, round(origin_price, 4), len(candidates), tracker,
+        start, end, route, plan, round(origin_price, 4), baselines, len(candidates), tracker,
+        range_miles, mpg,
         {k: round(v, 1) for k, v in timings.items()},
     )
 

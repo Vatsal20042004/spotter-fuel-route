@@ -3,59 +3,158 @@
     "name": "Spotter Fuel Route API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
-  "variable": [{ "key": "base_url", "value": "http://localhost:8000" }],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    }
+  ],
   "item": [
     {
       "name": "Route: New York -> Los Angeles (addresses)",
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "url": "{{base_url}}/api/route/",
-        "body": { "mode": "raw", "raw": "{\n  \"start\": \"New York, NY\",\n  \"finish\": \"Los Angeles, CA\"\n}" }
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"New York, NY\",\n  \"finish\": \"Los Angeles, CA\"\n}"
+        }
       },
-      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-        "const d = pm.response.json();",
-        "pm.test('200 OK', () => pm.response.to.have.status(200));",
-        "pm.test('has total cost', () => pm.expect(parseFloat(d.summary.total_fuel_cost)).to.be.above(0));",
-        "pm.test('<= 3 external API calls', () => pm.expect(d.meta.external_api_calls).to.be.at.most(3));",
-        "pm.test('stops are <= 500 miles apart', () => {",
-        "  let prev = 0; d.fuel_stops.forEach(s => { pm.expect(s.mile_marker - prev).to.be.at.most(500.01); prev = s.mile_marker; });",
-        "  pm.expect(d.route.distance_miles - prev).to.be.at.most(500.01);",
-        "});"
-      ] } }]
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const d = pm.response.json();",
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('has total cost', () => pm.expect(parseFloat(d.summary.total_fuel_cost)).to.be.above(0));",
+              "pm.test('<= 3 external API calls', () => pm.expect(d.meta.external_api_calls).to.be.at.most(3));",
+              "pm.test('stops are <= 500 miles apart', () => {",
+              "  let prev = 0; d.fuel_stops.forEach(s => { pm.expect(s.mile_marker - prev).to.be.at.most(500.01); prev = s.mile_marker; });",
+              "  pm.expect(d.route.distance_miles - prev).to.be.at.most(500.01);",
+              "});"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "Route: Miami -> Seattle (coordinates = exactly 1 external call)",
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "url": "{{base_url}}/api/route/",
-        "body": { "mode": "raw", "raw": "{\n  \"start\": \"25.7617,-80.1918\",\n  \"finish\": \"47.6062,-122.3321\"\n}" }
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"25.7617,-80.1918\",\n  \"finish\": \"47.6062,-122.3321\"\n}"
+        }
       },
-      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-        "const d = pm.response.json();",
-        "pm.test('200 OK', () => pm.response.to.have.status(200));",
-        "pm.test('exactly one routing call (or cached)', () => pm.expect(d.meta.external_api_calls).to.be.at.most(1));"
-      ] } }]
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const d = pm.response.json();",
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('exactly one routing call (or cached)', () => pm.expect(d.meta.external_api_calls).to.be.at.most(1));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Route: custom vehicle (350 mi range, 6.5 mpg)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/route/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"Dallas, TX\",\n  \"finish\": \"Atlanta, GA\",\n  \"range_miles\": 350,\n  \"mpg\": 6.5\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const d = pm.response.json();",
+              "pm.test('vehicle override applied', () => pm.expect(d.summary.vehicle.mpg).to.eql(6.5));",
+              "pm.test('shows savings vs price-blind driver', () => pm.expect(parseFloat(d.savings.price_blind.you_save)).to.be.at.least(0));"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "Route: short trip Chicago -> Indianapolis (GET)",
       "request": {
         "method": "GET",
-        "url": { "raw": "{{base_url}}/api/route/?start=Chicago, IL&finish=Indianapolis, IN",
-          "host": ["{{base_url}}"], "path": ["api", "route", ""],
-          "query": [{ "key": "start", "value": "Chicago, IL" }, { "key": "finish", "value": "Indianapolis, IN" }] }
+        "url": {
+          "raw": "{{base_url}}/api/route/?start=Chicago, IL&finish=Indianapolis, IN",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "route",
+            ""
+          ],
+          "query": [
+            {
+              "key": "start",
+              "value": "Chicago, IL"
+            },
+            {
+              "key": "finish",
+              "value": "Indianapolis, IN"
+            }
+          ]
+        }
       }
     },
     {
       "name": "Error: location outside the USA (400)",
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "url": "{{base_url}}/api/route/",
-        "body": { "mode": "raw", "raw": "{\n  \"start\": \"48.8566,2.3522\",\n  \"finish\": \"New York, NY\"\n}" }
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"48.8566,2.3522\",\n  \"finish\": \"New York, NY\"\n}"
+        }
       }
     },
-    { "name": "Health", "request": { "method": "GET", "url": "{{base_url}}/api/health/" } }
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/health/"
+      }
+    }
   ]
 }

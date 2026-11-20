@@ -125,3 +125,21 @@ def test_infeasible_when_gap_exceeds_range(client, db):
 def test_health_and_map_page(client, stations):
     assert client.get(reverse("health")).json() == {"status": "ok", "stations_loaded": 3}
     assert client.get("/").status_code == 200
+
+
+def test_response_has_savings_and_detour(client, stations):
+    with mock.patch("requests.get", return_value=FakeResponse(OSRM_OK)):
+        body = post(client, start="40.0,-110.0", finish="40.0,-92.0").json()
+    assert float(body["savings"]["price_blind"]["you_save"]) >= 0
+    assert all("detour_miles" in s for s in body["fuel_stops"])
+
+
+def test_vehicle_overrides_change_the_plan(client, stations):
+    with mock.patch("requests.get", return_value=FakeResponse(OSRM_OK)):
+        body = post(client, start="40.0,-110.0", finish="40.0,-92.0", range_miles=800, mpg=5).json()
+    assert body["summary"]["vehicle"] == {"range_miles": 800.0, "mpg": 5.0}
+    assert body["summary"]["total_gallons"] == pytest.approx(body["route"]["distance_miles"] / 5, rel=1e-3)
+
+
+def test_vehicle_override_validation(client, stations):
+    assert post(client, start="40.0,-110.0", finish="40.0,-92.0", mpg=0).status_code == 400

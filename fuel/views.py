@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import render
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -34,8 +33,28 @@ def _place(loc) -> dict:
     return {"query": None, "lat": loc.lat, "lng": loc.lng, "label": loc.label}
 
 
+def _savings(result: TripResult) -> dict:
+    """How much the optimised plan saves against two price-ignorant ways of buying fuel."""
+    optimal = result.plan.total_cost
+    labels = {
+        "price_blind": "Driver who ignores prices: fills up and stops at the farthest station in range",
+        "corridor_average": "Every gallon bought at the average price of stations along the route",
+    }
+    out = {}
+    for key, label in labels.items():
+        base = result.baselines.get(key)
+        if base is None:
+            continue
+        out[key] = {
+            "description": label,
+            "baseline_cost": str(base),
+            "you_save": str(base - optimal),
+            "percent": round(float((base - optimal) / base * 100), 1) if base else 0.0,
+        }
+    return out
+
+
 def build_payload(result: TripResult, geometry: str) -> dict:
-    miles_per_gallon = settings.VEHICLE_MPG
     stops, origin_fill, order = [], None, 0
     for p in result.plan.purchases:
         entry = {
@@ -44,7 +63,8 @@ def build_payload(result: TripResult, geometry: str) -> dict:
             "mile_marker": round(p.candidate.mile, 1),
             "price_per_gallon": f"{p.candidate.price:.4f}",
         }
-        station = p.candidate.ref
+        hit = p.candidate.ref
+        station = hit.station if hit else None
         if station is None:  # the estimated fill-up at the origin
             origin_fill = {
                 **entry,
@@ -61,6 +81,7 @@ def build_payload(result: TripResult, geometry: str) -> dict:
                 "city": station.city,
                 "state": station.state,
                 "location": {"lat": round(station.lat, 5), "lng": round(station.lng, 5)},
+                "detour_miles": round(hit.detour_miles, 1),
                 **entry,
             }
         )
@@ -84,9 +105,10 @@ def build_payload(result: TripResult, geometry: str) -> dict:
                 else None
             ),
             "number_of_fuel_stops": len(stops),
-            "vehicle": {"range_miles": settings.VEHICLE_RANGE_MILES, "mpg": miles_per_gallon},
+            "vehicle": {"range_miles": result.range_miles, "mpg": result.mpg},
             "currency": "USD",
         },
+        "savings": _savings(result),
         "meta": {
             "external_api_calls": result.tracker.calls,
             "external_calls_detail": result.tracker.log,
@@ -127,7 +149,8 @@ class RouteView(APIView):
         ser = RouteRequestSerializer(data=data)
         ser.is_valid(raise_exception=True)
         try:
-            result = plan_trip(ser.validated_data["start"], ser.validated_data["finish"])
+            v = ser.validated_data
+            result = plan_trip(v["start"], v["finish"], v.get("range_miles"), v.get("mpg"))
         except RoutePlanningError as exc:
             return Response({"error": {"code": exc.code, "message": exc.message}}, status=exc.status)
         payload = build_payload(result, ser.validated_data["geometry"])

@@ -115,3 +115,19 @@ def test_tiny_purchases_are_folded_into_previous_stop():
     assert [p.candidate.mile for p in exact.purchases] == [0, 200, 220]
     assert [p.candidate.mile for p in merged.purchases] == [0, 220]
     assert merged.total_gallons == pytest.approx(60)
+
+
+def test_price_blind_baseline_is_never_cheaper_than_optimal_on_realistic_trip():
+    from fuel.services.optimizer import price_blind_cost
+
+    random.seed(5)
+    cands = [C(0, 3.4)] + [C(m, random.uniform(2.8, 3.8)) for m in range(35, 2000, 40)]
+    optimal = plan_fuel(cands, 2000, RANGE, MPG)
+    blind = price_blind_cost(cands, 2000, RANGE, MPG)
+    assert blind is not None and blind >= optimal.total_cost
+
+
+def test_price_blind_baseline_reports_infeasible_as_none():
+    from fuel.services.optimizer import price_blind_cost
+
+    assert price_blind_cost([C(0, 3.0), C(700, 3.0)], 900, RANGE, MPG) is None

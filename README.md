@@ -14,6 +14,15 @@ from the supplied fuel-price file. Includes a Leaflet map page for the visual ro
 | Total cost at 10 mpg | `summary.total_fuel_cost` = sum of gallons x price at each stop |
 | Map | `GET /` interactive map; GeoJSON LineString in every response |
 
+**Beyond the brief**
+
+- **Savings figure.** Every response says how much the plan saves against a price-blind driver (about 9-12% on
+  the sample trips) and against buying everything at the corridor average price. This is the business case in one number.
+- **Any vehicle.** Optional `range_miles` and `mpg` per request, so the same API serves a fleet that is not all 500 mi / 10 mpg.
+- **Honest per-stop data.** Each stop reports `detour_miles` off the route, plus `mile_marker`, gallons and cost.
+- **Provably optimal.** The optimiser is checked against an exact dynamic-programming reference on random trips.
+- **Production habits.** Input validation, typed error codes, throttling, caching, OpenAPI docs, Docker, CI, 55 offline tests.
+
 ## Quick start
 
 ```bash
@@ -31,7 +40,7 @@ curl -X POST localhost:8000/api/route/ -H "Content-Type: application/json" \
      -d '{"start": "New York, NY", "finish": "Los Angeles, CA"}'
 ```
 
-Docker: `docker compose up --build`. Tests: `pytest` (50 tests, offline). Lint: `ruff check .`.
+Docker: `docker compose up --build`. Tests: `pytest` (55 tests, offline). Lint: `ruff check .`.
 A Postman collection with assertions is in `postman/`.
 
 ## API
@@ -41,6 +50,7 @@ A Postman collection with assertions is in `postman/`.
 | Field | Notes |
 |---|---|
 | `start`, `finish` | US address/place (`"Austin, TX"`) **or** `"lat,lng"` (skips geocoding; 1 external call total) |
+| `range_miles`, `mpg` | Optional vehicle overrides (defaults 500 and 10) |
 | `geometry` | `simplified` (default, ~2-mile spacing) or `full` router geometry |
 
 Response (abridged):
@@ -51,6 +61,7 @@ Response (abridged):
   "fuel_stops": [{"order": 1, "name": "...", "city": "...", "state": "NE", "location": {"lat": .., "lng": ..},
                   "mile_marker": 851.2, "price_per_gallon": "2.9690", "gallons": 50.0, "cost": "148.45"}],
   "origin_fill_up": {"gallons": 4.519, "cost": "15.77", "note": "..."},
+  "savings": {"price_blind": {"baseline_cost": "964.89", "you_save": "105.13", "percent": 10.9}, "corridor_average": {...}},
   "summary": {"total_fuel_cost": "859.76", "total_gallons": 279.4, "number_of_fuel_stops": 10, "currency": "USD", ...},
   "meta": {"external_api_calls": 1, "cache_hits": 0, "timings_ms": {...}}
 }

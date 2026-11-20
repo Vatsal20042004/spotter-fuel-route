@@ -75,6 +75,31 @@ def _consolidate(stops: list[Candidate], bought: dict[int, float], rng: float, m
             return
 
 
+def price_blind_cost(candidates: list[Candidate], total_miles: float, range_miles: float, mpg: float):
+    """Cost for a driver who ignores prices: fill up, then stop at the farthest station in range.
+
+    Used only as a comparison baseline for the "you saved $X" figure. Returns None if this
+    strategy cannot finish the trip.
+    """
+    stops = sorted(candidates, key=lambda c: c.mile)
+    if not stops or stops[0].mile > EPS:
+        return None
+    cur, fuel, cost = stops[0], 0.0, Decimal("0.00")
+    while True:
+        remaining = total_miles - cur.mile
+        if remaining <= range_miles + EPS:
+            buy = max(0.0, remaining - fuel)
+            return cost + _money(cur.price, buy / mpg)
+        reach = [s for s in stops if cur.mile < s.mile <= cur.mile + range_miles + EPS]
+        if not reach:
+            return None
+        nxt = max(reach, key=lambda s: s.mile)
+        buy = range_miles - fuel
+        cost += _money(cur.price, buy / mpg)
+        fuel = range_miles - (nxt.mile - cur.mile)
+        cur = nxt
+
+
 def plan_fuel(
     candidates: list[Candidate],
     total_miles: float,

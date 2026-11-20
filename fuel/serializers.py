@@ -14,6 +14,13 @@ class RouteRequestSerializer(serializers.Serializer):
         help_text="'simplified' (~2-mile spacing, light payload) or 'full' router geometry.",
     )
 
+    range_miles = serializers.FloatField(
+        required=False, min_value=50, max_value=2000, help_text="Vehicle range in miles (default 500)."
+    )
+    mpg = serializers.FloatField(
+        required=False, min_value=1, max_value=100, help_text="Fuel economy in mpg (default 10)."
+    )
+
     def validate(self, attrs):
         if attrs["start"].strip().lower() == attrs["finish"].strip().lower():
             raise serializers.ValidationError("start and finish must be different locations.")

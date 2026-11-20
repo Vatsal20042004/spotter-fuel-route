@@ -62,10 +62,11 @@ document.getElementById('f').addEventListener('submit', async e => {
     out.innerHTML = `
       <div class="card"><div class="muted">Total fuel cost</div><div class="big">$${sm.total_fuel_cost}</div>
         <div class="muted">${sm.total_gallons} gal · ${d.route.distance_miles} mi · ${d.route.duration_hours} h · ${sm.number_of_fuel_stops} stops</div></div>
+      ${d.savings.price_blind ? `<div class="card"><div class="muted">Saved vs. a price-blind driver</div><div class="big">$${d.savings.price_blind.you_save}</div><div class="muted">${d.savings.price_blind.percent}% less than $${d.savings.price_blind.baseline_cost}</div></div>` : ''}
       ${d.origin_fill_up ? `<div class="card"><b>Start</b><div class="row"><span>${d.origin_fill_up.gallons} gal @ $${d.origin_fill_up.price_per_gallon}</span><b>$${d.origin_fill_up.cost}</b></div><div class="muted">Estimated price near origin</div></div>` : ''}
       ${d.fuel_stops.map(s => `<div class="card"><div class="row"><b>#${s.order} ${esc(s.name)}</b><b>$${s.cost}</b></div>
         <div class="muted">${esc(s.city)}, ${esc(s.state)} · mile ${s.mile_marker}</div>
-        <div class="muted">${s.gallons} gal @ $${s.price_per_gallon}</div></div>`).join('')}
+        <div class="muted">${s.gallons} gal @ $${s.price_per_gallon} · ${s.detour_miles} mi off route</div></div>`).join('')}
       <p class="muted">External API calls: ${m.external_api_calls} · cache hits: ${m.cache_hits} · compute ${m.timings_ms.compute_ms} ms</p>`;
   } catch (err) { out.innerHTML = '<p class="err">' + esc(err.message) + '</p>'; }
   finally { btn.disabled = false; }
