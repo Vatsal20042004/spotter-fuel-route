@@ -145,7 +145,7 @@ class RouteView(APIView):
         responses=api_docs.RESPONSES,
         examples=[api_docs.SUCCESS_EXAMPLE, api_docs.ERROR_EXAMPLE],
         summary="Same as POST, using query parameters",
-        description="Easiest to try in the browser: fill in start and finish, press Try it out, then Execute.",
+        description="Fill in start and finish, press Try it out, then Execute.",
     )
     def get(self, request):
         return self._handle(request.query_params)
