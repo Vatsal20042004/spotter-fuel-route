@@ -4,10 +4,11 @@ from decimal import Decimal
 
 from django.http import JsonResponse
 from django.shortcuts import render
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.utils import extend_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from . import api_docs
 from .models import FuelStation
 from .serializers import RouteRequestSerializer
 from .services.errors import RoutePlanningError
@@ -128,20 +129,23 @@ class RouteView(APIView):
 
     @extend_schema(
         request=RouteRequestSerializer,
-        responses={200: dict, 400: dict, 422: dict, 502: dict},
+        responses=api_docs.RESPONSES,
+        examples=[*api_docs.REQUEST_EXAMPLES, api_docs.SUCCESS_EXAMPLE, api_docs.ERROR_EXAMPLE],
         summary="Route + optimal fuel stops",
+        description=(
+            "Send a start and finish in the USA. Returns the driving route (GeoJSON), the cheapest fuel "
+            "stops along it, the total fuel cost, and how much that saves versus a price-blind driver."
+        ),
     )
     def post(self, request):
         return self._handle(request.data)
 
     @extend_schema(
-        parameters=[
-            OpenApiParameter("start", str, required=True),
-            OpenApiParameter("finish", str, required=True),
-            OpenApiParameter("geometry", str, enum=["simplified", "full"]),
-        ],
-        responses={200: dict, 400: dict, 422: dict, 502: dict},
-        summary="Same as POST, using query parameters (handy for the map page)",
+        parameters=api_docs.PARAMETERS,
+        responses=api_docs.RESPONSES,
+        examples=[api_docs.SUCCESS_EXAMPLE, api_docs.ERROR_EXAMPLE],
+        summary="Same as POST, using query parameters",
+        description="Easiest to try in the browser: fill in start and finish, press Try it out, then Execute.",
     )
     def get(self, request):
         return self._handle(request.query_params)
