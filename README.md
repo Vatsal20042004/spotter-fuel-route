@@ -17,7 +17,9 @@ from the supplied fuel-price file. Includes a map page (`/`) where the stops are
 The free host sleeps when idle, so the first visit after a quiet spell can take up to a minute to wake.
 
 ```bash
-curl -X POST https://spotter-fuel-route.onrender.com/api/route/ \n     -H "Content-Type: application/json" \n     -d '{"start": "New York, NY", "finish": "Los Angeles, CA"}'
+curl -X POST https://spotter-fuel-route.onrender.com/api/route/ \
+     -H "Content-Type: application/json" \
+     -d '{"start": "New York, NY", "finish": "Los Angeles, CA"}'
 ```
 
 ![Route fuel planner: New York to Los Angeles](docs/screenshot.png)
