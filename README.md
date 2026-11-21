@@ -53,15 +53,10 @@ python manage.py load_fuel_stations                      # ~6.4k stations from t
 python manage.py runserver
 ```
 
-Open <http://localhost:8000/> for the map, <http://localhost:8000/api/docs/> for Swagger, or:
+Then open <http://localhost:8000/> for the map and <http://localhost:8000/api/docs/> for Swagger.
 
-```bash
-curl -X POST localhost:8000/api/route/ -H "Content-Type: application/json" \
-     -d '{"start": "New York, NY", "finish": "Los Angeles, CA"}'
-```
-
-Docker: `docker compose up --build`. One-click hosting: `render.yaml`. Design notes and diagram: [`docs/DESIGN.md`](docs/DESIGN.md). Tests: `pytest` (68 tests, offline). Lint: `ruff check .`.
-A Postman collection with assertions is in `postman/`.
+Docker: `docker compose up --build`. Hosting: the live demo is deployed from `render.yaml`. Design notes and diagram: [`docs/DESIGN.md`](docs/DESIGN.md). Tests: `pytest` (68 tests, offline). Lint: `ruff check .`.
+A Postman collection with assertions is in `postman/` and points at the live URL (change the `base_url` variable to use a local server).
 
 ## API
 
