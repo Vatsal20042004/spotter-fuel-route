@@ -6,7 +6,19 @@ Django API that takes a **start** and **finish** inside the USA and returns the 
 **cost-optimal fuel stops** along it (500-mile range), and the **total fuel cost** at 10 mpg, priced
 from the supplied fuel-price file. Includes a map page (`/`) where the stops are laid out as a strip map, with gaps drawn in proportion to the miles between them.
 
-**Live demo: https://spotter-fuel-route.onrender.com/** (API docs: [/api/docs/](https://spotter-fuel-route.onrender.com/api/docs/)). The free host sleeps when idle, so the first visit after a quiet spell can take up to a minute to wake.
+## Live demo
+
+| | |
+|---|---|
+| Map | https://spotter-fuel-route.onrender.com/ |
+| API docs (Swagger) | https://spotter-fuel-route.onrender.com/api/docs/ |
+| Endpoint | `POST https://spotter-fuel-route.onrender.com/api/route/` |
+
+The free host sleeps when idle, so the first visit after a quiet spell can take up to a minute to wake.
+
+```bash
+curl -X POST https://spotter-fuel-route.onrender.com/api/route/ -H "Content-Type: application/json"      -d '{"start": "New York, NY", "finish": "Los Angeles, CA"}'
+```
 
 ![Route fuel planner: New York to Los Angeles](docs/screenshot.png)
 
@@ -31,7 +43,7 @@ from the supplied fuel-price file. Includes a map page (`/`) where the stops are
 - **Provably optimal.** The optimiser is checked against an exact dynamic-programming reference on random trips.
 - **Production habits.** Input validation, typed error codes, throttling, caching, OpenAPI docs, Docker, CI, 68 offline tests.
 
-## Quick start
+## Run it locally
 
 ```bash
 python -m venv .venv && source .venv/bin/activate        # Windows: .venv\Scripts\activate
